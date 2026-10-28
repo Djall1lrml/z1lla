@@ -6,9 +6,44 @@ import { getSettings } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://zilla-store.com";
+
 export const metadata = {
-  title: "ZILLA STORE · Vintage Tech",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "ZILLA STORE · Vintage Tech",
+    template: "%s | ZILLA STORE",
+  },
   description: "Tested vintage digital cameras, PSP, iPods and more, delivered across Algeria.",
+  keywords: [
+    "vintage tech Algeria",
+    "digital camera Algeria",
+    "PSP Algeria",
+    "iPod Algeria",
+    "vintage console",
+    "ZILLA STORE",
+  ],
+  applicationName: "ZILLA STORE",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "ZILLA STORE · Vintage Tech",
+    description: "Tested vintage digital cameras, PSP, iPods and more, delivered across Algeria.",
+    url: siteUrl,
+    siteName: "ZILLA STORE",
+    locale: "en_US",
+    type: "website",
+    images: [{ url: "/logo.jpg", width: 1200, height: 630, alt: "ZILLA STORE" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ZILLA STORE · Vintage Tech",
+    description: "Tested vintage digital cameras, PSP, iPods and more, delivered across Algeria.",
+    images: ["/logo.jpg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
