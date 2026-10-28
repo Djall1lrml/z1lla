@@ -74,11 +74,11 @@ export default function Shop({ products, cat, settings }) {
                     </Link>
                     <small>{x.d}</small>
                     <span className="pr">{fm(x.p)}</span>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <button className="btn" disabled={out || maxed} onClick={() => add(x)} style={{ flex: 1 }}>
+                    <div className="product-card-actions">
+                      <button className="btn" disabled={out || maxed} onClick={() => add(x)}>
                         {out ? "Sold out" : maxed ? "Max in cart" : "Add to cart"}
                       </button>
-                      <Link href={`/products/${x.id}`} className="btn o" style={{ flex: "0 0 auto" }}>Details</Link>
+                      <Link href={`/products/${x.id}`} className="btn o">Details</Link>
                     </div>
                   </div>
                 </div>

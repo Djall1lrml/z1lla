@@ -18,7 +18,7 @@ export default function ProductDetail({ product, related }) {
         <span className="pill">{product.c}</span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(0, 0.85fr)", gap: 28 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(0, 0.85fr)", gap: 28 }} className="product-detail-layout">
         <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 18, padding: 18 }}>
           <div style={{ aspectRatio: "1 / 1", background: "linear-gradient(135deg,#eaf7ee,#f6d5c8)", borderRadius: 16, overflow: "hidden", border: "1px solid var(--line)" }}>
             {activeImage ? (
@@ -67,7 +67,7 @@ export default function ProductDetail({ product, related }) {
               </strong>
             </div>
             <p style={{ margin: 0, color: "var(--mu)", lineHeight: 1.7 }}>{product.d || "No description provided for this item."}</p>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div className="product-detail-actions">
               <Link href="/#shop" className="btn o">Continue shopping</Link>
               <button className="btn r" disabled={out} onClick={() => add({ ...product, p: product.p, s: product.s })}>
                 {out ? "Sold out" : "Add to cart"}
