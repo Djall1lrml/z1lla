@@ -61,18 +61,25 @@ export default function Shop({ products, cat, settings }) {
               const maxed = !out && inCart >= x.s;
               return (
                 <div className="p" key={x.id}>
-                  <div className="ph">
-                    {x.i?.[0] ? <img src={x.i[0]} alt={x.n} /> : EM[x.c] || "📦"}
-                    {out ? <span className="tag">SOLD OUT</span> : x.s < 3 ? <span className="tag">LAST {x.s}</span> : null}
-                  </div>
+                  <Link href={`/products/${x.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                    <div className="ph">
+                      {x.i?.[0] ? <img src={x.i[0]} alt={x.n} /> : EM[x.c] || "📦"}
+                      {out ? <span className="tag">SOLD OUT</span> : x.s < 3 ? <span className="tag">LAST {x.s}</span> : null}
+                    </div>
+                  </Link>
                   <div className="pb">
                     <small>{x.c}</small>
-                    <b>{x.n}</b>
+                    <Link href={`/products/${x.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                      <b>{x.n}</b>
+                    </Link>
                     <small>{x.d}</small>
                     <span className="pr">{fm(x.p)}</span>
-                    <button className="btn" disabled={out || maxed} onClick={() => add(x)}>
-                      {out ? "Sold out" : maxed ? "Max in cart" : "Add to cart"}
-                    </button>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <button className="btn" disabled={out || maxed} onClick={() => add(x)} style={{ flex: 1 }}>
+                        {out ? "Sold out" : maxed ? "Max in cart" : "Add to cart"}
+                      </button>
+                      <Link href={`/products/${x.id}`} className="btn o" style={{ flex: "0 0 auto" }}>Details</Link>
+                    </div>
                   </div>
                 </div>
               );
