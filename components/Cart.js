@@ -68,13 +68,13 @@ export default function Cart() {
     body = (
       <>
         {cart.map((c) => (
-          <div className="row" key={c.id}>
-            <span>
-              {c.n}
-              <br />
+          <div className="row cart-line" key={c.id}>
+            <div className="cart-line-meta">
+              <span className="cart-line-name">{c.n}</span>
               <small className="mu">{fm(c.p)} × {c.q}</small>
-            </span>
-            <button className="btn o" aria-label="Remove" onClick={() => remove(c.id)}>✕</button>
+            </div>
+            <div className="cart-line-total">{fm(c.p * c.q)}</div>
+            <button className="btn o cart-remove" aria-label="Remove" onClick={() => remove(c.id)}>✕</button>
           </div>
         ))}
         <p><b>Total: {fm(total)}</b></p>
