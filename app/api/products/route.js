@@ -16,9 +16,15 @@ export const POST = api(async (req) => {
   const p = Math.round(Number(b.p));
   const s = Math.round(Number(b.s));
   if (!(p >= 0) || !(s >= 0)) throw new HttpError(400, "Invalid price or stock");
-  const i = String(b.i || "");
-  if (i && (!i.startsWith("data:image/") || i.length > 600_000)) throw new HttpError(400, "Invalid image");
-  const row = { n, c: b.c, p, s, d: String(b.d || "").slice(0, 300), i };
+
+  const images = Array.isArray(b.i) ? b.i : typeof b.i === "string" && b.i ? [b.i] : [];
+  for (const img of images) {
+    if (typeof img !== "string" || !img.startsWith("data:image/") || img.length > 600_000) {
+      throw new HttpError(400, "Invalid image");
+    }
+  }
+
+  const row = { n, c: b.c, p, s, d: String(b.d || "").slice(0, 300), i: images.length ? images : [] };
   const data = ok(await sb().from("products").insert(row).select("id,n,c,p,s,d,i").single());
   return json(data, 201);
 });

@@ -145,18 +145,19 @@ function Orders({ orders, reload, setErr }) {
 }
 
 function Products({ products, reload, setErr }) {
-  const empty = { n: "", c: CATS[0], p: "", s: "1", d: "", i: "" };
+  const empty = { n: "", c: CATS[0], p: "", s: "1", d: "", i: [] };
   const [f, setF] = useState(empty);
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
+  const previewImages = Array.isArray(f.i) ? f.i : typeof f.i === "string" && f.i ? [f.i] : [];
 
   async function pick(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
     try {
-      setF((s) => ({ ...s, i: "" }));
-      const i = await resize(file);
-      setF((s) => ({ ...s, i }));
+      setF((s) => ({ ...s, i: [] }));
+      const images = await Promise.all(files.map((file) => resize(file)));
+      setF((s) => ({ ...s, i: images }));
     } catch (e) {
       setErr(e.message);
     }
@@ -167,7 +168,12 @@ function Products({ products, reload, setErr }) {
     setBusy(true);
     setErr("");
     try {
-      await call("/api/products", "POST", { ...f, p: Number(f.p), s: Number(f.s) });
+      await call("/api/products", "POST", {
+        ...f,
+        i: Array.isArray(f.i) ? f.i : f.i ? [f.i] : [],
+        p: Number(f.p),
+        s: Number(f.s),
+      });
       setF(empty);
       e.target.reset();
       await reload();
@@ -209,8 +215,12 @@ function Products({ products, reload, setErr }) {
         </div>
         <textarea placeholder="Description" value={f.d} onChange={set("d")} />
         <div className="f">
-          <input type="file" accept="image/*" onChange={pick} />
-          {f.i && <img src={f.i} alt="" style={{ height: 60, borderRadius: 8 }} />}
+          <input type="file" accept="image/*" multiple onChange={pick} />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {previewImages.map((img, idx) => (
+              <img key={`${img}-${idx}`} src={img} alt="" style={{ height: 60, width: 60, objectFit: "cover", borderRadius: 8 }} />
+            ))}
+          </div>
         </div>
         <button className="btn" disabled={busy}>{busy ? "Saving…" : "Add"}</button>
       </form>
@@ -219,10 +229,13 @@ function Products({ products, reload, setErr }) {
         <table>
           <thead><tr><th></th><th>Product</th><th>Price</th><th>Stock</th><th></th></tr></thead>
           <tbody>
-            {products.map((p) => (
-              <tr key={p.id}>
-                <td>{p.i ? <img src={p.i} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8 }} /> : null}</td>
-                <td>{p.n}<br /><small className="mu">{p.c}</small></td>
+            {products.map((p) => {
+              const productImages = Array.isArray(p.i) ? p.i : p.i ? [p.i] : [];
+              const firstImage = productImages[0];
+              return (
+                <tr key={p.id}>
+                  <td>{firstImage ? <img src={firstImage} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8 }} /> : null}</td>
+                  <td>{p.n}<br /><small className="mu">{p.c}</small></td>
                 <td>
                   <input type="number" min="0" defaultValue={p.p} style={{ width: 110 }} key={`p${p.id}-${p.p}`}
                     onBlur={(e) => Number(e.target.value) !== p.p && patch(p.id, { p: Number(e.target.value) })} />
@@ -231,9 +244,10 @@ function Products({ products, reload, setErr }) {
                   <input type="number" min="0" defaultValue={p.s} style={{ width: 80 }} key={`s${p.id}-${p.s}`}
                     onBlur={(e) => Number(e.target.value) !== p.s && patch(p.id, { s: Number(e.target.value) })} />
                 </td>
-                <td><button className="btn r" onClick={() => del(p)}>Delete</button></td>
-              </tr>
-            ))}
+                  <td><button className="btn r" onClick={() => del(p)}>Delete</button></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

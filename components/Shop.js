@@ -62,7 +62,7 @@ export default function Shop({ products, cat, settings }) {
               return (
                 <div className="p" key={x.id}>
                   <div className="ph">
-                    {x.i ? <img src={x.i} alt={x.n} /> : EM[x.c] || "📦"}
+                    {x.i?.[0] ? <img src={x.i[0]} alt={x.n} /> : EM[x.c] || "📦"}
                     {out ? <span className="tag">SOLD OUT</span> : x.s < 3 ? <span className="tag">LAST {x.s}</span> : null}
                   </div>
                   <div className="pb">
