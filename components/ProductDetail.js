@@ -10,6 +10,9 @@ export default function ProductDetail({ product, related }) {
   const [active, setActive] = useState(0);
   const activeImage = images[active] || "";
   const out = product.s < 1;
+  const original = Number(product.op ?? product.p ?? 0);
+  const promo = original > 0 && product.p < original;
+  const discountPercent = promo ? Math.round(((original - product.p) / original) * 100) : 0;
 
   return (
     <div className="wrap" style={{ paddingTop: 28, paddingBottom: 48 }}>
@@ -56,7 +59,15 @@ export default function ProductDetail({ product, related }) {
           <div>
             <small className="mu" style={{ textTransform: "uppercase", letterSpacing: 1.3 }}>{product.c}</small>
             <h1 style={{ margin: "8px 0 10px", fontSize: "clamp(2rem, 4vw, 3rem)", lineHeight: 1.1 }}>{product.n}</h1>
-            <div style={{ fontSize: 32, fontWeight: 900, color: "var(--g)" }}>{fm(product.p)}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 32, fontWeight: 900, color: "var(--g)" }}>{fm(product.p)}</div>
+              {promo && (
+                <>
+                  <span className="tag" style={{ background: "#fee2e2", color: "#b42318", borderColor: "#f7b0b1" }}>{discountPercent}% OFF</span>
+                  <span className="mu" style={{ textDecoration: "line-through" }}>{fm(original)}</span>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="step" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -93,17 +104,28 @@ export default function ProductDetail({ product, related }) {
             related.map((item) => {
               const itemOut = item.s < 1;
               const img = item.i?.[0];
+              const itemOriginal = Number(item.op ?? item.p ?? 0);
+              const itemPromo = itemOriginal > 0 && item.p < itemOriginal;
+              const itemDiscountPercent = itemPromo ? Math.round(((itemOriginal - item.p) / itemOriginal) * 100) : 0;
               return (
                 <Link href={`/products/${item.id}`} key={item.id} className="p" style={{ textDecoration: "none" }}>
                   <div className="ph">
                     {img ? <img src={img} alt={item.n} /> : EM[item.c] || "📦"}
                     {itemOut ? <span className="tag">SOLD OUT</span> : item.s < 3 ? <span className="tag">LAST {item.s}</span> : null}
+                    {itemPromo && (
+                      <span className="tag" style={{ background: "#fee2e2", color: "#b42318", borderColor: "#f7b0b1" }}>{itemDiscountPercent}% OFF</span>
+                    )}
                   </div>
                   <div className="pb">
                     <small>{item.c}</small>
                     <b>{item.n}</b>
                     <small>{item.d}</small>
-                    <span className="pr">{fm(item.p)}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {itemPromo && (
+                        <span className="mu" style={{ textDecoration: "line-through" }}>{fm(itemOriginal)}</span>
+                      )}
+                      <span className="pr">{fm(item.p)}</span>
+                    </div>
                   </div>
                 </Link>
               );

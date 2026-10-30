@@ -59,12 +59,16 @@ export default function Shop({ products, cat, settings }) {
               const inCart = cart.find((c) => c.id === x.id)?.q || 0;
               const out = x.s < 1;
               const maxed = !out && inCart >= x.s;
+              const original = Number(x.op ?? x.p ?? 0);
+              const promo = original > 0 && x.p < original;
+              const discountPercent = promo ? Math.round(((original - x.p) / original) * 100) : 0;
               return (
                 <div className="p" key={x.id}>
                   <Link href={`/products/${x.id}`} style={{ textDecoration: "none", color: "inherit" }}>
                     <div className="ph">
                       {x.i?.[0] ? <img src={x.i[0]} alt={x.n} /> : EM[x.c] || "📦"}
                       {out ? <span className="tag">SOLD OUT</span> : x.s < 3 ? <span className="tag">LAST {x.s}</span> : null}
+                      {promo && <span className="tag" style={{ background: "#fee2e2", color: "#b42318", borderColor: "#f7b0b1" }}>{discountPercent}% OFF</span>}
                     </div>
                   </Link>
                   <div className="pb">
@@ -73,7 +77,10 @@ export default function Shop({ products, cat, settings }) {
                       <b>{x.n}</b>
                     </Link>
                     <small>{x.d}</small>
-                    <span className="pr">{fm(x.p)}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {promo && <span className="mu" style={{ textDecoration: "line-through" }}>{fm(original)}</span>}
+                      <span className="pr">{fm(x.p)}</span>
+                    </div>
                     <div className="product-card-actions">
                       <button className="btn" disabled={out || maxed} onClick={() => add(x)}>
                         {out ? "Sold out" : maxed ? "Max in cart" : "Add to cart"}

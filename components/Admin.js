@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { CATS, STATUSES, fm } from "@/lib/constants";
+import { CATS, STATUSES, WILAYAS, fm } from "@/lib/constants";
 
 async function call(url, method = "GET", data) {
   const r = await fetch(url, {
@@ -148,7 +148,10 @@ function Products({ products, reload, setErr }) {
   const empty = { n: "", c: CATS[0], p: "", s: "1", d: "", i: [] };
   const [f, setF] = useState(empty);
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState(empty);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
+  const setEdit = (k) => (e) => setEditForm((s) => ({ ...s, [k]: e.target.value }));
   const previewImages = Array.isArray(f.i) ? f.i : typeof f.i === "string" && f.i ? [f.i] : [];
 
   async function pick(e) {
@@ -193,6 +196,24 @@ function Products({ products, reload, setErr }) {
     }
   }
 
+  async function saveEdit(e) {
+    e.preventDefault();
+    if (editingId == null) return;
+    try {
+      await patch(editingId, {
+        n: editForm.n,
+        c: editForm.c,
+        p: Number(editForm.p),
+        s: Number(editForm.s),
+        d: editForm.d,
+      });
+      setEditingId(null);
+      setEditForm(empty);
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
   async function del(p) {
     if (!confirm(`Delete "${p.n}"?`)) return;
     try {
@@ -232,19 +253,56 @@ function Products({ products, reload, setErr }) {
             {products.map((p) => {
               const productImages = Array.isArray(p.i) ? p.i : p.i ? [p.i] : [];
               const firstImage = productImages[0];
+              const isEditing = editingId === p.id;
+              const original = Number(p.op ?? p.p ?? 0);
+              const promo = original > 0 && p.p < original;
               return (
                 <tr key={p.id}>
                   <td>{firstImage ? <img src={firstImage} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8 }} /> : null}</td>
-                  <td>{p.n}<br /><small className="mu">{p.c}</small></td>
-                <td>
-                  <input type="number" min="0" defaultValue={p.p} style={{ width: 110 }} key={`p${p.id}-${p.p}`}
-                    onBlur={(e) => Number(e.target.value) !== p.p && patch(p.id, { p: Number(e.target.value) })} />
-                </td>
-                <td>
-                  <input type="number" min="0" defaultValue={p.s} style={{ width: 80 }} key={`s${p.id}-${p.s}`}
-                    onBlur={(e) => Number(e.target.value) !== p.s && patch(p.id, { s: Number(e.target.value) })} />
-                </td>
-                  <td><button className="btn r" onClick={() => del(p)}>Delete</button></td>
+                  <td>
+                    {isEditing ? (
+                      <div style={{ display: "grid", gap: 8, minWidth: 260 }}>
+                        <input value={editForm.n} onChange={setEdit("n")} placeholder="Name" />
+                        <select value={editForm.c} onChange={setEdit("c")}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
+                        <textarea value={editForm.d} onChange={setEdit("d")} placeholder="Description" rows={3} />
+                      </div>
+                    ) : (
+                      <>
+                        {p.n}<br /><small className="mu">{p.c}</small>
+                        {promo && <div><small className="mu" style={{ color: "#b42318" }}>Promo price</small></div>}
+                      </>
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <input type="number" min="0" value={editForm.p} style={{ width: 110 }} onChange={setEdit("p")} />
+                    ) : (
+                      <>
+                        <div>{fm(p.p)}</div>
+                        {promo && <small className="mu" style={{ textDecoration: "line-through" }}>{fm(original)}</small>}
+                      </>
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <input type="number" min="0" value={editForm.s} style={{ width: 80 }} onChange={setEdit("s")} />
+                    ) : (
+                      p.s
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <button className="btn" type="button" onClick={saveEdit}>Save</button>
+                        <button className="btn o" type="button" onClick={() => { setEditingId(null); setEditForm(empty); }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <button className="btn o" type="button" onClick={() => { setEditingId(p.id); setEditForm({ n: p.n, c: p.c, p: String(p.p), s: String(p.s), d: p.d || "", i: Array.isArray(p.i) ? p.i : p.i ? [p.i] : [] }); }}>Edit</button>
+                        <button className="btn r" type="button" onClick={() => del(p)}>Delete</button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -256,29 +314,100 @@ function Products({ products, reload, setErr }) {
 }
 
 function Settings({ setErr }) {
-  const [s, setS] = useState({ wa: "", ig: "" });
+  const [s, setS] = useState({ wa: "", ig: "", home_fee: 0, desk_fee: 0, wilaya_fees: [] });
   const [saved, setSaved] = useState(false);
+
   useEffect(() => {
-    call("/api/settings").then(setS).catch((e) => setErr(e.message));
+    call("/api/settings")
+      .then((data) => {
+        const fees = Array.isArray(data.wilaya_fees) && data.wilaya_fees.length
+          ? data.wilaya_fees
+          : WILAYAS.map((wilaya) => ({ wilaya, home_fee: Number(data.home_fee ?? 0), desk_fee: Number(data.desk_fee ?? 0) }));
+
+        setS({
+          wa: data.wa || "",
+          ig: data.ig || "",
+          home_fee: Number(data.home_fee ?? 0),
+          desk_fee: Number(data.desk_fee ?? 0),
+          wilaya_fees: fees,
+        });
+      })
+      .catch((e) => setErr(e.message));
   }, [setErr]);
+
+  function setWilayaFee(wilaya, type, value) {
+    setS((prev) => ({
+      ...prev,
+      wilaya_fees: (prev.wilaya_fees || []).map((row) => (
+        row.wilaya === wilaya ? { ...row, [type]: Number(value || 0) } : row
+      )),
+    }));
+  }
+
   async function save(e) {
     e.preventDefault();
     setSaved(false);
     try {
-      setS(await call("/api/settings", "PUT", s));
+      const payload = {
+        ...s,
+        home_fee: Number(s.home_fee),
+        desk_fee: Number(s.desk_fee),
+        wilaya_fees: (s.wilaya_fees || []).map((row) => ({
+          wilaya: row.wilaya,
+          home_fee: Number(row.home_fee ?? 0),
+          desk_fee: Number(row.desk_fee ?? 0),
+        })),
+      };
+      setS(await call("/api/settings", "PUT", payload));
       setSaved(true);
     } catch (e) {
       setErr(e.message);
     }
   }
+
   return (
-    <form onSubmit={save} className="step" style={{ marginTop: 14, maxWidth: 420 }}>
-      <b>Contact settings</b>
+    <form onSubmit={save} className="step" style={{ marginTop: 14, maxWidth: 520 }}>
+      <b>Contact & delivery settings</b>
       <p className="mu">WhatsApp number with country code, digits only (e.g. 2135xxxxxxxx).</p>
       <input value={s.wa} onChange={(e) => setS({ ...s, wa: e.target.value })} placeholder="WhatsApp" />
       <br /><br />
       <input value={s.ig} onChange={(e) => setS({ ...s, ig: e.target.value })} placeholder="Instagram handle" />
       <br /><br />
+      <div style={{ display: "grid", gap: 8 }}>
+        <label>
+          <span className="mu">Default Home delivery fee (DA)</span>
+          <input type="number" min="0" value={s.home_fee} onChange={(e) => setS({ ...s, home_fee: e.target.value })} />
+        </label>
+        <label>
+          <span className="mu">Default Desk delivery fee (DA)</span>
+          <input type="number" min="0" value={s.desk_fee} onChange={(e) => setS({ ...s, desk_fee: e.target.value })} />
+        </label>
+      </div>
+      <br />
+      <div>
+        <b>Wilaya delivery prices</b>
+        <div className="mu" style={{ margin: "6px 0 12px" }}>Set a different Home / Desk fee for each wilaya.</div>
+        <div style={{ display: "grid", gap: 6, maxHeight: 320, overflowY: "auto" }}>
+          {(s.wilaya_fees || []).map((row) => (
+            <div key={row.wilaya} style={{ display: "grid", gridTemplateColumns: "minmax(140px, 1.7fr) 1fr 1fr", gap: 8, alignItems: "center" }}>
+              <span>{row.wilaya}</span>
+              <input
+                type="number"
+                min="0"
+                value={row.home_fee ?? 0}
+                onChange={(e) => setWilayaFee(row.wilaya, "home_fee", e.target.value)}
+              />
+              <input
+                type="number"
+                min="0"
+                value={row.desk_fee ?? 0}
+                onChange={(e) => setWilayaFee(row.wilaya, "desk_fee", e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+      <br />
       <button className="btn">Save</button> {saved && <span>Saved ✓</span>}
     </form>
   );

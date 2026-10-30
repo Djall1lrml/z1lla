@@ -3,31 +3,59 @@
 create table if not exists products (
   id         bigint generated always as identity primary key,
   n          text    not null,
-  c          text    not null check (c in ('Cameras','PSP','iPods','Vintage')),
+  c          text    not null check (c in ('Cameras','PSP','iPods','Vintage','Accessoire')),
   p          integer not null check (p >= 0),
+  op         integer not null default 0 check (op >= 0),
   s          integer not null check (s >= 0),
   d          text    not null default '',
   i          text    not null default '',
   created_at timestamptz not null default now()
 );
 
+alter table products add column if not exists op integer not null default 0;
+
 create table if not exists orders (
-  id     bigint generated always as identity (start with 10001) primary key,
-  date   timestamptz not null default now(),
-  name   text    not null,
-  phone  text    not null,
-  wilaya text    not null,
-  addr   text    not null default '',
-  items  jsonb   not null,
-  total  integer not null,
-  st     text    not null default 'New'
-         check (st in ('New','Confirmed','Shipped','Delivered','Cancelled'))
+  id            bigint generated always as identity (start with 10001) primary key,
+  date          timestamptz not null default now(),
+  name          text    not null,
+  phone         text    not null,
+  wilaya        text    not null,
+  delivery_type text    not null default 'Home'
+                check (delivery_type in ('Home','Desk')),
+  delivery_fee  integer not null default 0 check (delivery_fee >= 0),
+  addr          text    not null default '',
+  items         jsonb   not null,
+  total         integer not null,
+  st            text    not null default 'New'
+                check (st in ('New','Confirmed','Shipped','Delivered','Cancelled'))
 );
+
+alter table orders add column if not exists delivery_type text not null default 'Home';
+alter table orders add column if not exists delivery_fee integer not null default 0;
 
 create table if not exists settings (
   id int primary key check (id = 1),
   wa text not null,
-  ig text not null
+  ig text not null,
+  home_fee integer not null default 0 check (home_fee >= 0),
+  desk_fee integer not null default 0 check (desk_fee >= 0)
+);
+
+alter table settings add column if not exists home_fee integer not null default 0;
+alter table settings add column if not exists desk_fee integer not null default 0;
+
+create table if not exists wilaya_fees (
+  wilaya text primary key,
+  home_fee integer not null default 0 check (home_fee >= 0),
+  desk_fee integer not null default 0 check (desk_fee >= 0)
+);
+
+alter table wilaya_fees add column if not exists home_fee integer not null default 0;
+alter table wilaya_fees add column if not exists desk_fee integer not null default 0;
+
+create table if not exists wilayas (
+  id   smallint primary key,
+  name text not null unique
 );
 
 -- Lock the tables down: only the server (service role key) can touch them.
@@ -38,7 +66,7 @@ alter table settings enable row level security;
 
 -- Place an order atomically: checks stock, takes prices from the DB, decrements stock.
 create or replace function place_order(
-  p_name text, p_phone text, p_wilaya text, p_addr text, p_items jsonb
+  p_name text, p_phone text, p_wilaya text, p_addr text, p_delivery_type text, p_delivery_fee int, p_items jsonb
 ) returns orders
 language plpgsql security definer set search_path = public as $$
 declare
@@ -49,6 +77,13 @@ declare
   sum int := 0;
   o orders;
 begin
+  if p_delivery_type not in ('Home', 'Desk') then
+    raise exception 'Invalid delivery type.';
+  end if;
+  if p_delivery_fee < 0 then
+    raise exception 'Invalid delivery fee.';
+  end if;
+
   if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
     raise exception 'Your cart is empty.';
   end if;
@@ -70,8 +105,8 @@ begin
     sum := sum + prod.p * qty;
   end loop;
 
-  insert into orders (name, phone, wilaya, addr, items, total)
-  values (p_name, p_phone, p_wilaya, p_addr, line, sum)
+  insert into orders (name, phone, wilaya, delivery_type, delivery_fee, addr, items, total)
+  values (p_name, p_phone, p_wilaya, p_delivery_type, p_delivery_fee, p_addr, line, sum + p_delivery_fee)
   returning * into o;
   return o;
 end $$;
@@ -109,14 +144,28 @@ begin
 end $$;
 
 -- Only the server may call these.
-revoke all on function place_order(text,text,text,text,jsonb) from public, anon, authenticated;
-revoke all on function set_order_status(bigint,text)          from public, anon, authenticated;
-grant execute on function place_order(text,text,text,text,jsonb) to service_role;
-grant execute on function set_order_status(bigint,text)          to service_role;
+revoke all on function place_order(text,text,text,text,text,int,jsonb) from public, anon, authenticated;
+revoke all on function set_order_status(bigint,text)                    from public, anon, authenticated;
+grant execute on function place_order(text,text,text,text,text,int,jsonb) to service_role;
+grant execute on function set_order_status(bigint,text)                  to service_role;
 
 -- Starter data (delete or edit later from the dashboard).
-insert into settings (id, wa, ig) values (1, '213000000000', 'zilla.store')
+insert into settings (id, wa, ig, home_fee, desk_fee)
+values (1, '213000000000', 'zilla.store', 500, 300)
+on conflict (id) do update set
+  wa = excluded.wa,
+  ig = excluded.ig,
+  home_fee = excluded.home_fee,
+  desk_fee = excluded.desk_fee;
+
+insert into wilayas (id, name) values
+  (1,'Adrar'),(2,'Aïn Defla'),(3,'Aïn Témouchent'),(4,'Algiers'),(5,'Annaba'),(6,'Batna'),(7,'Béchar'),(8,'Béjaïa'),(9,'Beni Abbès'),(10,'Biskra'),(11,'Blida'),(12,'Bordj Badji Mokhtar'),(13,'Bordj Bou Arréridj'),(14,'Bouira'),(15,'Boumerdès'),(16,'Chlef'),(17,'Constantine'),(18,'Djanet'),(19,'Djelfa'),(20,'El Bayadh'),(21,'El Meghaier'),(22,'El Oued'),(23,'El Tarf'),(24,'Ghardaïa'),(25,'Guelma'),(26,'Illizi'),(27,'In Guezzam'),(28,'In Salah'),(29,'Jijel'),(30,'Khenchela'),(31,'Laghouat'),(32,'M\'Sila'),(33,'Mascara'),(34,'Médéa'),(35,'Mila'),(36,'Mostaganem'),(37,'Naama'),(38,'Oran'),(39,'Ouargla'),(40,'Oum El Bouaghi'),(41,'Relizane'),(42,'Saïda'),(43,'Sétif'),(44,'Sidi Bel Abbès'),(45,'Skikda'),(46,'Souk Ahras'),(47,'Tamanghasset'),(48,'Tébessa'),(49,'Tiaret'),(50,'Timimoun'),(51,'Tindouf'),(52,'Tipaza'),(53,'Tissemsilt'),(54,'Tizi Ouzou'),(55,'Tlemcen'),(56,'Touggourt'),(57,'Tizi Ghenif'),(58,'Khemis Miliana')
 on conflict (id) do nothing;
+
+insert into wilaya_fees (wilaya, home_fee, desk_fee)
+select name, 0, 0
+from wilayas
+on conflict (wilaya) do nothing;
 
 insert into products (n, c, p, s, d)
 select * from (values

@@ -2,17 +2,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "./Store";
-import { fm } from "@/lib/constants";
+import { DELIVERY_TYPES, WILAYAS, fm } from "@/lib/constants";
 
 export default function Cart() {
   const { cart, open, setOpen, remove, clear, total, settings } = useStore();
   const router = useRouter();
-  const [f, setF] = useState({ name: "", phone: "", wilaya: "", addr: "" });
+  const [f, setF] = useState({ name: "", phone: "", wilaya: WILAYAS[0], delivery: "Home", addr: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState(null);
 
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
+  const selectedWilayaFee = (settings?.wilaya_fees || []).find((row) => row.wilaya === f.wilaya) || {};
+  const deliveryFee = Number(f.delivery === "Home" ? (selectedWilayaFee.home_fee ?? settings?.home_fee ?? 0) : (selectedWilayaFee.desk_fee ?? settings?.desk_fee ?? 0));
+  const grandTotal = total + deliveryFee;
   const close = () => {
     setOpen(false);
     setDone(null);
@@ -27,11 +30,15 @@ export default function Cart() {
       const r = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, items: cart.map((c) => ({ id: c.id, q: c.q })) }),
+        body: JSON.stringify({
+          ...f,
+          delivery_fee: deliveryFee,
+          items: cart.map((c) => ({ id: c.id, q: c.q })),
+        }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || "Something went wrong. Please try again.");
-      setDone({ ...d, name: f.name, phone: f.phone, wilaya: f.wilaya, addr: f.addr });
+      setDone({ ...d, name: f.name, phone: f.phone, wilaya: f.wilaya, addr: f.addr, delivery: f.delivery, delivery_fee: deliveryFee });
       clear();
       router.refresh(); // refresh stock on the page
     } catch (e) {
@@ -46,7 +53,7 @@ export default function Cart() {
     const msg =
       `New order #${done.id}\n` +
       done.items.map((i) => `${i.q}x ${i.n}`).join("\n") +
-      `\nTotal: ${done.total} DA\n${done.name} | ${done.phone} | ${done.wilaya} | ${done.addr}`;
+      `\nTotal: ${done.total} DA\n${done.name} | ${done.phone} | ${done.wilaya} | ${done.delivery} | ${done.addr}`;
     body = (
       <>
         <h3>Order sent ✅</h3>
@@ -77,16 +84,39 @@ export default function Cart() {
             <button className="btn o cart-remove" aria-label="Remove" onClick={() => remove(c.id)}>✕</button>
           </div>
         ))}
-        <p><b>Total: {fm(total)}</b></p>
+        <div style={{ display: "grid", gap: 8, margin: "10px 0" }}>
+          <div><b>Delivery</b></div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {DELIVERY_TYPES.map((type) => {
+              const fee = Number(type === "Home" ? (selectedWilayaFee.home_fee ?? settings?.home_fee ?? 0) : (selectedWilayaFee.desk_fee ?? settings?.desk_fee ?? 0));
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  className={"btn" + (f.delivery === type ? "" : " o")}
+                  style={{ flex: 1, minWidth: 90 }}
+                  onClick={() => setF((s) => ({ ...s, delivery: type }))}
+                >
+                  {type} · {fm(fee)}
+                </button>
+              );
+            })}
+          </div>
+          <div><b>Products: {fm(total)}</b></div>
+          <div><b>Delivery: {fm(deliveryFee)}</b></div>
+          <div><b>Total: {fm(grandTotal)}</b></div>
+        </div>
         <div className="f" style={{ gridTemplateColumns: "1fr" }}>
           <input placeholder="Full name" value={f.name} onChange={set("name")} autoComplete="name" />
           <input placeholder="Phone" value={f.phone} onChange={set("phone")} autoComplete="tel" inputMode="tel" />
-          <input placeholder="Wilaya" value={f.wilaya} onChange={set("wilaya")} />
+          <select value={f.wilaya} onChange={set("wilaya")}>
+            {WILAYAS.map((w) => <option key={w} value={w}>{w}</option>)}
+          </select>
           <textarea placeholder="Address / delivery desk" value={f.addr} onChange={set("addr")} />
         </div>
         {err && <p className="err">{err}</p>}
         <button className="btn r" style={{ width: "100%" }} disabled={busy} onClick={submit}>
-          {busy ? "Sending…" : "Confirm order (cash on delivery)"}
+          {busy ? "Sending…" : `Confirm order · ${fm(grandTotal)}`}
         </button>
       </>
     );

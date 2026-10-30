@@ -15,7 +15,8 @@ export const POST = api(async (req) => {
   if (!CATS.includes(b.c)) throw new HttpError(400, "Invalid category");
   const p = Math.round(Number(b.p));
   const s = Math.round(Number(b.s));
-  if (!(p >= 0) || !(s >= 0)) throw new HttpError(400, "Invalid price or stock");
+  const op = b.op !== undefined ? Math.round(Number(b.op)) : p;
+  if (!(p >= 0) || !(s >= 0) || !(op >= 0)) throw new HttpError(400, "Invalid price or stock");
 
   const images = Array.isArray(b.i) ? b.i : typeof b.i === "string" && b.i ? [b.i] : [];
   for (const img of images) {
@@ -24,7 +25,15 @@ export const POST = api(async (req) => {
     }
   }
 
-  const row = { n, c: b.c, p, s, d: String(b.d || "").slice(0, 300), i: images.length ? images : [] };
-  const data = ok(await sb().from("products").insert(row).select("id,n,c,p,s,d,i").single());
-  return json(data, 201);
+  const row = { n, c: b.c, p, op, s, d: String(b.d || "").slice(0, 300), i: images.length ? images : [] };
+  const insertWithPromo = await sb().from("products").insert(row).select("id,n,c,p,s,d,i,op").single();
+  if (insertWithPromo.error) {
+    if (insertWithPromo.error.code === "42703" && String(insertWithPromo.error.message).includes("op")) {
+      const { op: _op, ...legacyRow } = row;
+      const data = ok(await sb().from("products").insert(legacyRow).select("id,n,c,p,s,d,i").single());
+      return json({ ...data, op: Number(data.p ?? 0) }, 201);
+    }
+    throw ok(insertWithPromo);
+  }
+  return json(insertWithPromo.data, 201);
 });
