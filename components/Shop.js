@@ -67,8 +67,8 @@ export default function Shop({ products, cat, settings }) {
                   <Link href={`/products/${x.id}`} style={{ textDecoration: "none", color: "inherit" }}>
                     <div className="ph">
                       {x.i?.[0] ? <img src={x.i[0]} alt={x.n} /> : EM[x.c] || "📦"}
-                      {out ? <span className="tag">SOLD OUT</span> : x.s < 3 ? <span className="tag">LAST {x.s}</span> : null}
-                      {promo && <span className="tag" style={{ background: "#fee2e2", color: "#b42318", borderColor: "#f7b0b1" }}>{discountPercent}% OFF</span>}
+                      {out ? <span className="tag" style={{ left: 8, right: "auto" }}>SOLD OUT</span> : x.s < 3 ? <span className="tag" style={{ left: 8, right: "auto" }}>LAST {x.s}</span> : null}
+                      {promo && <span className="tag" style={{ left: "auto", right: 8, background: "#fee2e2", color: "#b42318", borderColor: "#f7b0b1" }}>{discountPercent}% OFF</span>}
                     </div>
                   </Link>
                   <div className="pb">

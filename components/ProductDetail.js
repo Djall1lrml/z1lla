@@ -63,7 +63,7 @@ export default function ProductDetail({ product, related }) {
               <div style={{ fontSize: 32, fontWeight: 900, color: "var(--g)" }}>{fm(product.p)}</div>
               {promo && (
                 <>
-                  <span className="tag" style={{ background: "#fee2e2", color: "#b42318", borderColor: "#f7b0b1" }}>{discountPercent}% OFF</span>
+                  <span className="tag" style={{ left: "auto", right: 8, background: "#fee2e2", color: "#b42318", borderColor: "#f7b0b1" }}>{discountPercent}% OFF</span>
                   <span className="mu" style={{ textDecoration: "line-through" }}>{fm(original)}</span>
                 </>
               )}
@@ -111,9 +111,9 @@ export default function ProductDetail({ product, related }) {
                 <Link href={`/products/${item.id}`} key={item.id} className="p" style={{ textDecoration: "none" }}>
                   <div className="ph">
                     {img ? <img src={img} alt={item.n} /> : EM[item.c] || "📦"}
-                    {itemOut ? <span className="tag">SOLD OUT</span> : item.s < 3 ? <span className="tag">LAST {item.s}</span> : null}
+                    {itemOut ? <span className="tag" style={{ left: 8, right: "auto" }}>SOLD OUT</span> : item.s < 3 ? <span className="tag" style={{ left: 8, right: "auto" }}>LAST {item.s}</span> : null}
                     {itemPromo && (
-                      <span className="tag" style={{ background: "#fee2e2", color: "#b42318", borderColor: "#f7b0b1" }}>{itemDiscountPercent}% OFF</span>
+                      <span className="tag" style={{ left: "auto", right: 8, background: "#fee2e2", color: "#b42318", borderColor: "#f7b0b1" }}>{itemDiscountPercent}% OFF</span>
                     )}
                   </div>
                   <div className="pb">
